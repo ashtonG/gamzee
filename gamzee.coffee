@@ -1,53 +1,5 @@
 #Gamzee.js V .01
 
-#game functions    
-choiceEvent = ->
-  this
-choice = (text, effect, next) ->
-  @text = text  if text
-  @effect = effect  if effect
-  @next = next  if next
-  this
-page = (text, turn) ->
-  @text = text
-  @turn = turn  unless turn is `undefined`
-  this
-clear = ->
-  pageChoices.empty()
-  rowCount = 0
-  colCount = 0
-  Event.textContent = ""
-  Actions.textContent = ""
-
-#Save and Load functions
-
-#Game set up.
-preGame = ->
-  document.title = $("title").innerHTML = AdventureTitle
-  Event = $ "event"
-  Actions = $ "actions"
-  br = document.createElement "br"
-  lt = document.createElement "span"
-  lt.textContent = "> "
-  events["title"].eventToPages()
-  Actions.innerHTML = ""
-  namesRaw = localStorage.getObject "taStuckDataRaw"
-  if not namesRaw? or namesRaw is {}
-    $("rMenu").style.visibility = "hidden"
-    $("event").innerHTML += "No save data detected. Select \"New Game\" below to start."
-    localStorage.setObject "taStuckData", {}
-  else
-    Object.each namesRaw, (item, key) ->
-      names[names.length] = new choice(key, ->
-        character = item
-      , "hub")
-      c = names.length
-      while c < 7
-        names[c] = new choice "No data", null, null
-        c++
-
-  $("new").onclick = ->
-    events["newGame"].eventToPages()
 rowCount = 0
 colCount = 0
 pages = []
@@ -55,9 +7,19 @@ pageChoices = []
 names = []
 saveNames = []
 loadNames = []
+#game functions    
+choiceEvent = ->
+  this
+
 choiceEvent:: =
   eventText: ""
   choices: []
+
+choice = (text, effect, next) ->
+  @text = text  if text
+  @effect = effect  if effect
+  @next = next  if next
+  this
 
 choice:: =
   text: "==>"
@@ -87,6 +49,11 @@ choice:: =
       pageChoices[Actions.getElements("a").indexOf(this)].effect()
       events[pageChoices[Actions.getElements("a").indexOf(this)].next].eventToPages()  unless pageChoices[Actions.getElements("a").indexOf(this)].next is ""
 
+page = (text, turn) ->
+  @text = text
+  @turn = turn  unless turn is `undefined`
+  this
+
 page:: =
   turn: [new choice(null, ->
     pages.shift().disp()
@@ -98,6 +65,21 @@ page:: =
     while c < @turn.length
       @turn[c].disp()
       c++
+
+templatestring = (text) ->
+	@raw = text if text
+	this
+
+templatestring:: =
+	toString: ->
+		raw.replace /<%([\w\W]+)%>/, (("$1") -> )
+
+clear = ->
+  pageChoices.empty()
+  rowCount = 0
+  colCount = 0
+  Event.textContent = ""
+  Actions.textContent = ""
 
 String::flagReplace = ->
   retString = this
@@ -133,6 +115,34 @@ Storage::setObject = (key, value) ->
 
 Storage::getObject = (key) ->
   JSON.decode @getItem(key)
+
+#Game set up.
+preGame = ->
+  document.title = $("title").innerHTML = AdventureTitle
+  Event = $ "event"
+  Actions = $ "actions"
+  br = document.createElement "br"
+  lt = document.createElement "span"
+  lt.textContent = "> "
+  events["title"].eventToPages()
+  Actions.innerHTML = ""
+  namesRaw = localStorage.getObject "taStuckDataRaw"
+  if not namesRaw? or namesRaw is {}
+    $("rMenu").style.visibility = "hidden"
+    $("event").innerHTML += "No save data detected. Select \"New Game\" below to start."
+    localStorage.setObject "taStuckData", {}
+  else
+    Object.each namesRaw, (item, key) ->
+      names[names.length] = new choice(key, ->
+        character = item
+      , "hub")
+      c = names.length
+      while c < 7
+        names[c] = new choice "No data", null, null
+        c++
+
+  $("new").onclick = ->
+    events["newGame"].eventToPages()
 
 window.addEvent "domready", preGame
 

@@ -1,148 +1,78 @@
-#Gamzee.js V .01
-
-rowCount = 0
-colCount = 0
-pages = []
-pageChoices = []
-names = []
-saveNames = []
-loadNames = []
-#game functions    
-choiceEvent = ->
-  this
-
-choiceEvent:: =
-  eventText: ""
-  choices: []
-
-choice = (text, effect, next) ->
-  @text = text  if text
-  @effect = effect  if effect
-  @next = next  if next
-  this
-
-choice:: =
-  text: "==>"
-  effect: ->
-
-  next: ""
-  disp: ->
-    link = document.createElement("a")
-    parentC = this
-    pageChoices[pageChoices.length] = parentC
-    link.href = "#"
-    link.textContent = @text
-    link.set "class", "actionLink"
-    ltNew = lt.clone()
-    ltNew.appendChild link
-    if colCount % 3 is 0
-      actRow = document.createElement "div"
-      rowCount++
-      actRow.display = "table-row"
-      actRow.id = "row" + rowCount
-      actRow.appendChild ltNew
-      Actions.appendChild actRow
-    else
-      $("row" + rowCount).appendChild ltNew
-      colCount++
-    link.onclick = ->
-      pageChoices[Actions.getElements("a").indexOf(this)].effect()
-      events[pageChoices[Actions.getElements("a").indexOf(this)].next].eventToPages()  unless pageChoices[Actions.getElements("a").indexOf(this)].next is ""
-
-page = (text, turn) ->
-  @text = text
-  @turn = turn  unless turn is `undefined`
-  this
-
-page:: =
-  turn: [new choice(null, ->
-    pages.shift().disp()
-  )]
-  disp: ->
-    clear()
-    Event.innerHTML = @text
-    c = 0
-    while c < @turn.length
-      @turn[c].disp()
-      c++
-
-templatestring = (text) ->
-	@raw = text if text
-	this
-
-templatestring:: =
-	toString: ->
-		raw.replace /<%([\w\W]+)%>/, (("$1") -> )
-
-clear = ->
-  pageChoices.empty()
-  rowCount = 0
-  colCount = 0
-  Event.textContent = ""
-  Actions.textContent = ""
-
-String::flagReplace = ->
-  retString = this
-  retString = retString.replace("$" + flags[0], character[flags[0]])
-  unless @indexOf("$") is -1
-    i = 1
-    while i < flags.length
-      retString = retString.replace("$" + flags[i], descriptions[character[flags[i]]].getRandom())  unless character[flags[i]] is ""
-      i++
-  retString
-
-Object::eventToPages = ->
-  if typeOf(this) is "function"
-    this()
-  else
-    @doIt()  if @doIt?
-    txtArray = @eventText.flagReplace().split("</p>")
-    until txtArray.length is 0
-      pageText = ""
-      c = 0
-      while c < 2
-        prinTxt = txtArray.shift()
-        pageText += prinTxt + "<br /><br />"  unless prinTxt is `undefined`
-        c++
-      unless txtArray.length is 0
-        pages.push new page(pageText.toString())
-      else
-        pages.push new page(pageText.toString(), @choices)
-    pages.shift().disp()
-
+#gamzee v0.1.1
+eventsArray = {}
+characters = []
 Storage::setObject = (key, value) ->
   @setItem key, JSON.encode(value)
 
 Storage::getObject = (key) ->
-  JSON.decode @getItem(key)
+  $.parseJSON @getItem(key)
 
-#Game set up.
-preGame = ->
-  document.title = $("title").innerHTML = AdventureTitle
-  Event = $ "event"
-  Actions = $ "actions"
-  br = document.createElement "br"
-  lt = document.createElement "span"
-  lt.textContent = "> "
-  events["title"].eventToPages()
-  Actions.innerHTML = ""
-  namesRaw = localStorage.getObject "taStuckDataRaw"
-  if not namesRaw? or namesRaw is {}
-    $("rMenu").style.visibility = "hidden"
-    $("event").innerHTML += "No save data detected. Select \"New Game\" below to start."
-    localStorage.setObject "taStuckData", {}
-  else
-    Object.each namesRaw, (item, key) ->
-      names[names.length] = new choice(key, ->
-        character = item
-      , "hub")
-      c = names.length
-      while c < 7
-        names[c] = new choice "No data", null, null
-        c++
+String::replaceFlags = ->
+  if @match(/<%.+?%>/) or @match(/<%=.+?%>/)
+    str = ""
+    if @match(/<%=.+?%>/)
+      str = @replace(/<%=(.+?)%>/g, (match, p1) ->
+        eval(p1)) #EVAL IS EVIL but I need it so bad to handle string functions.
+    else str = this
+    if str.match(/<%.+?%>/)
+      str = str.replace(/<%(.+?)%>/g, (match, p1)->
+        character[p1])
+    return str
+  else this
 
-  $("new").onclick = ->
-    events["newGame"].eventToPages()
+page =
+  title: (str) ->
+    if str?
+      $("#title").text str
+    else
+      $("#title").text()
+  event: ->
+    $ "#event"
+  actions: ->
+    $ "#actions"
+  eventDisplay: (dEvent) ->
+    page.event().empty()
+    page.actions().empty()
+    lines = $(dEvent.eventText.replaceFlags().toString()).filter("p")
+    lines.slice(0,breakAt).each (index, element) ->
+      page.event().append element
+    rest = $ "<div/>"
+    lines.slice(breakAt).each (index, element) ->
+      rest.append element
+    if lines.length > breakAt
+      page.actions().append new choice("==>",null, new event(rest.html(), dEvent.choices)).link()
+    else
+      choiceString = ""
+      if dEvent.choices?
+        for choiceI in dEvent.choices
+          page.actions().append choiceI.link()
+class event
+  constructor: (@eventText,@choices) ->
 
-window.addEvent "domready", preGame
+class choice
+  constructor: (@text, @action, @destination) ->
 
+  link: ->
+    cho = this
+    $("<a href='#'>#{@text}</a>").click cho, ->
+      cho.action() if cho.action?
+      if typeof(cho.destination) is "string"
+        console.log cho.destination
+        page.eventDisplay eventsArray[cho.destination]
+      else if cho.destination.eventText?
+        page.eventDisplay cho.destination
+      else throw "NotEventError"
+
+class playerCharacter
+  constructor: (@name, @stats) ->
+
+readyUp = ->
+  document.title = AdventureTitle
+  page.title AdventureTitle
+  for own key, value of events
+    eventsArray[key]=new event(value.eventText, value.choices)
+  page.eventDisplay eventsArray["title"]
+  $("#new").click ->
+    page.eventDisplay eventsArray["newGame"]
+
+$ readyUp
